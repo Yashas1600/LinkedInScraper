@@ -1,0 +1,5 @@
+undetected-chromedriver
+selenium
+python-dotenv
+setuptools>=68
+standard-distutils; python_version >= "3.12"

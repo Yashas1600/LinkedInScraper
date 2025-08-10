@@ -1,0 +1,35 @@
+{
+  "full_name": "Sophie Liu",
+  "linkedin_url": "https://www.linkedin.com/in/sophie-liuu/",
+  "education": {
+    "major": "Cognitive Science",
+    "minor": null
+  },
+  "experiences": [
+    {
+      "company": "PwC",
+      "role": "Management Consultant",
+      "description": "Start Advisory Intern 2025 - Workforce Transformation"
+    },
+    {
+      "company": "UCLA",
+      "role": "Campus Tour Guide",
+      "description": "Trained 60+ hours to share my favorite things about UCLA while walking backwards"
+    },
+    {
+      "company": "Soka Records",
+      "role": "Label Marketing Intern",
+      "description": null
+    },
+    {
+      "company": "NBCUniversal",
+      "role": "Creative Marketing Intern",
+      "description": "UCLA's Campus Representative for NBCUniversal"
+    },
+    {
+      "company": "SEP at UCLA",
+      "role": "Co-Director of Spring Recruitment",
+      "description": null
+    }
+  ]
+}
