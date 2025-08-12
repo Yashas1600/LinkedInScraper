@@ -256,12 +256,28 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
         pass
 
     # Experience section
+    #
+    # LinkedIn renders experience entries with a mixture of visible text and
+    # accessibility (a11y) duplicates. To reduce noise we try to:
+    # 1) Find the Experience section container once
+    # 2) Click any top-level "Show more" to reveal more description content
+    # 3) For each experience list item, extract:
+    #    - role: bold text near the top of the card
+    #    - company: regular-weight line right below the role
+    #    - description: expandable block further down the card
+    # 4) Prefer aria-hidden='true' text nodes, which correspond to what's
+    #    actually visible on screen (and avoid a11y duplicates)
+    # 5) Normalize role/company strings to keep only the first meaningful
+    #    segment (trim UI separators like middot and pipe, preserve intra-word
+    #    hyphens such as "Co-Director")
     try:
         exp_section = _first_or_none(
             driver.find_elements(By.XPATH, "//section[.//h2[contains(normalize-space(.), 'Experience')]]")
         )
         if exp_section:
             # Expand any "Show more" toggles to reveal descriptions
+            # This operates at the section level (not per-item) to surface
+            # collapsed paragraphs that are relevant to multiple items.
             try:
                 for btn in exp_section.find_elements(By.XPATH, ".//button[.//span[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'show more') or contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'see more')]]"):
                     try:
@@ -277,19 +293,26 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
             )
             for li in items:
                 try:
-                    # Prefer visible text spans (aria-hidden='true') which avoid a11y duplicates
+                    # Prefer visible text spans (aria-hidden='true') to avoid a11y duplicates.
+                    # Role: the bold line at the top of each experience card.
                     role_xpath_candidates = [
                         ".//span[contains(@class,'t-bold') and @aria-hidden='true']",
                         ".//div[contains(@class,'t-bold') and @aria-hidden='true']",
                         ".//span[contains(@class,'t-bold')]",
                         ".//div[contains(@class,'t-bold')]",
                     ]
+                    # Company: the regular-weight line beneath the role.
                     company_xpath_candidates = [
                         ".//span[contains(@class,'t-14') and contains(@class,'t-normal') and @aria-hidden='true']",
                         ".//span[contains(@class,'t-14') and contains(@class,'t-normal')]",
                     ]
 
                     def get_first_text_by_xpaths(root, xpaths):
+                        """Return first non-empty text found by trying candidate XPaths in order.
+
+                        LinkedIn often duplicates nodes for accessibility; this
+                        tries the most reliable/visible nodes first.
+                        """
                         for xp in xpaths:
                             node = _first_or_none(root.find_elements(By.XPATH, xp))
                             text = _get_text_safe(node)
@@ -300,7 +323,8 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
                     role_raw = get_first_text_by_xpaths(li, role_xpath_candidates)
                     company_raw = get_first_text_by_xpaths(li, company_xpath_candidates)
 
-                    # Prefer aria-hidden='true' to avoid duplicate a11y text
+                    # Description: prefer aria-hidden='true' to avoid duplicate a11y text,
+                    # then fallback to any matching description block.
                     desc_el = _first_or_none(li.find_elements(
                         By.XPATH,
                         ".//div[(contains(@class,'show-more-less-text__text') or contains(@class,'inline-show-more-text')) and @aria-hidden='true']"
@@ -321,6 +345,14 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
                             description = parts[0]
                     
                     def _normalize_label(raw: str | None) -> str | None:
+                        """Pick the first meaningful segment and trim UI separators.
+
+                        Why: LinkedIn often decorates lines with separators (·, |, em-dash)
+                        and prefixes/suffixes (e.g., logos, counters). We keep only the
+                        left-most content users recognize (role or company) and preserve
+                        intra-word hyphens (e.g., Co-Director) by splitting only on
+                        spaced hyphens.
+                        """
                         if not raw:
                             return None
                         # Take first non-empty line
