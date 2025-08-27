@@ -271,6 +271,7 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
     #    segment (trim UI separators like middot and pipe, preserve intra-word
     #    hyphens such as "Co-Director")
     try:
+        # Find the Experience section on the current profile page
         exp_section = _first_or_none(
             driver.find_elements(By.XPATH, "//section[.//h2[contains(normalize-space(.), 'Experience')]]")
         )
