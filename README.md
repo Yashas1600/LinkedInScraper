@@ -22,6 +22,11 @@ A Python-based tool for scraping LinkedIn profiles using Selenium and undetected
 - Focuses on work experience questions for better accuracy
 - Handles contradictory answers and provides helpful feedback
 
+<img width="805" height="245" alt="image" src="https://github.com/user-attachments/assets/ca37e96c-bc0b-41db-b8f6-4b9a45685267" />
+<img width="795" height="469" alt="image" src="https://github.com/user-attachments/assets/471b8182-60b9-40f6-87cd-b43c64ef70ca" />
+
+
+
 ## Installation
 
 1. **Clone the repository**:
