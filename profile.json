@@ -1,35 +1,35 @@
 {
-  "full_name": "Sophie Liu",
-  "linkedin_url": "https://www.linkedin.com/in/sophie-liuu/",
+  "full_name": "Yashas Shashidhara",
+  "linkedin_url": "https://www.linkedin.com/in/yashas-shashidhara-340517208/",
   "education": {
-    "major": "Cognitive Science",
+    "major": "Computer Science and Linguistics",
     "minor": null
   },
   "experiences": [
     {
-      "company": "PwC",
-      "role": "Management Consultant",
-      "description": "Start Advisory Intern 2025 - Workforce Transformation"
+      "company": "Extreme Networks",
+      "role": "Software Engineer Intern",
+      "description": "Product Engineering Team"
     },
     {
-      "company": "UCLA",
-      "role": "Campus Tour Guide",
-      "description": "Trained 60+ hours to share my favorite things about UCLA while walking backwards"
+      "company": "1 yr",
+      "role": "SEP at UCLA",
+      "description": "- Raised $4.5k+ in class venture, completed YC startup school"
     },
     {
-      "company": "NBCUniversal",
-      "role": "Creative Marketing Intern",
-      "description": "UCLA's Campus Representative for NBCUniversal"
+      "company": "Bruin Tank 2025",
+      "role": "Bruin Tank VC + Outreach Team",
+      "description": "Led VC + sponsorship outreach for SoCal's annual Shark Tank pitch competition"
     },
     {
-      "company": "Soka Records",
-      "role": "Label Marketing Intern",
-      "description": null
+      "company": "California State University, Monterey Bay",
+      "role": "Research Intern",
+      "description": "- Utilized deep learning techniques (CNNs) to analyze shark injuries and body metrics.\n- Developed a convolutional neural network using the YOLOv8 pose detection model to estimate shark BMI with 93 % accuracy from 10,000+ videos.\n- Used Python, TensorFlow, and OpenCV for deep learning and data augmentation to improve generalization across diverse marine environments.\n- Optimized model performance through hyperparameter tuning and evaluating results using mean average precision.\n…see more"
     },
     {
-      "company": "Poppin",
-      "role": "Campus Lead",
-      "description": null
+      "company": "University of California, Berkeley",
+      "role": "Machine Learning Research Intern",
+      "description": "- Contributed to the development of a scalable deep learning-based earthquake monitoring system using cloud computing, improving earthquake detection accuracy and reliability.\n- Engineered a data processing pipeline to visualize seismic data and integrate it into machine learning models, enhancing efficiency.\n- Utilized Python, TensorFlow, and Kafka, to streamline data ingestion, processing, and model deployment.\n…see more"
     }
   ]
 }

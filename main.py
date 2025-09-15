@@ -227,28 +227,49 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
         if edu_section:
             first_item = _first_or_none(edu_section.find_elements(By.XPATH, ".//li"))
             if first_item:
-                # Collect relevant text parts
+                # Collect all text parts for major/minor parsing
                 text_bits = [t for t in _get_text_safe(first_item).split("\n") if t.strip()]
-                joined = " | ".join(text_bits)
+                
                 major = None
                 minor = None
-                # Heuristics: look for 'Minor' and split on commas / pipes
-                if "Minor" in joined:
-                    # e.g., "Bachelor of Science, Computer Science | Minor in Mathematics"
-                    parts = re.split(r"\||,", joined)
-                    for p in parts:
-                        p_stripped = p.strip()
-                        if p_stripped.lower().startswith("minor"):
-                            minor = p_stripped
-                        else:
-                            # Take the first part that looks like a subject as major
-                            if major is None and any(k in p_stripped.lower() for k in ["science", "arts", "engineering", "computer", "business", "economics", "biology", "mathematics", "design", "studies", "degree", "bachelor", "master"]):
-                                major = p_stripped
-                else:
-                    # Attempt a simpler split: degree, major
-                    m = re.search(r",\s*([^|]+)", joined)
-                    if m:
-                        major = m.group(1).strip()
+                
+                # Look for major in text lines - try multiple approaches
+                for bit in text_bits:
+                    bit_clean = bit.strip()
+                    
+                    # Skip university/school names and dates
+                    if any(skip in bit_clean.lower() for skip in ["university", "college", "school", "institute", "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027"]):
+                        continue
+                    
+                    # Pattern 1: "Bachelor of Science - BS, Computer Science"
+                    if "," in bit_clean and re.search(r"bachelor|master|phd|bs|ba|ms|ma", bit_clean, re.IGNORECASE):
+                        parts = [p.strip() for p in bit_clean.split(",")]
+                        if len(parts) >= 2:
+                            potential_major = parts[-1]
+                            # Filter out degree abbreviations
+                            if not re.search(r"^(bs|ba|ms|ma|phd)$", potential_major, re.IGNORECASE):
+                                major = potential_major
+                                break
+                    
+                    # Pattern 2: "Bachelor of Science in Computer Science"
+                    in_match = re.search(r"(?:bachelor|master|phd|bs|ba|ms|ma).+?(?:in|of)\s+([^,\-\|\n]+)", bit_clean, re.IGNORECASE)
+                    if in_match:
+                        potential_major = in_match.group(1).strip()
+                        if not any(skip in potential_major.lower() for skip in ["science", "arts", "engineering", "business"]):
+                            major = potential_major
+                            break
+                    
+                    # Pattern 3: Simple subject line (if it looks academic)
+                    if any(subject_word in bit_clean.lower() for subject_word in ["computer", "data", "economics", "psychology", "biology", "chemistry", "physics", "mathematics", "statistics", "engineering", "finance", "marketing", "management"]):
+                        if not re.search(r"bachelor|master|phd|university|college", bit_clean, re.IGNORECASE):
+                            major = bit_clean
+                            break
+                
+                # Look for minor
+                for bit in text_bits:
+                    if "minor" in bit.lower():
+                        minor = bit.strip()
+                        break
 
                 data["education"]["major"] = major
                 data["education"]["minor"] = minor
@@ -382,28 +403,72 @@ def scrape_profile(driver: uc.Chrome, profile_url: str) -> dict:
     return data
 
 
+def search_google_for_linkedin(driver: uc.Chrome, name: str) -> str | None:
+    """Search Google for 'name + linkedin' and return first LinkedIn profile URL found."""
+    try:
+        search_query = f"{name} linkedin"
+        driver.get(f"https://www.google.com/search?q={search_query}")
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        time.sleep(1)
+        
+        # Look for LinkedIn profile links in search results
+        linkedin_links = driver.find_elements(By.XPATH, "//a[contains(@href,'linkedin.com/in/')]")
+        for link in linkedin_links:
+            href = link.get_attribute("href")
+            if href and "/in/" in href and "linkedin.com" in href:
+                # Clean up Google redirect URLs
+                if "url?q=" in href:
+                    href = href.split("url?q=")[1].split("&")[0]
+                return href
+        return None
+    except Exception:
+        return None
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Open Chrome, log into LinkedIn with li_at cookie, and navigate to your profile.")
+    parser = argparse.ArgumentParser(description="Open Chrome, log into LinkedIn with li_at cookie, and scrape profiles.")
     parser.add_argument("--reset", action="store_true", help="Delete saved values and re-prompt.")
     args = parser.parse_args()
 
     env_values = ensure_env_values(reset=args.reset)
     li_at = env_values.get("LI_AT", "").strip()
-    saved_default = env_values.get("PROFILE_URL", "").strip()
-    while True:
-        entered = input("Enter a LinkedIn URL to open (press Enter to use saved default if available): ").strip()
-        if not entered and saved_default:
-            profile_url = saved_default
-            break
-        if entered:
-            if not entered.startswith("http://") and not entered.startswith("https://"):
-                entered = "https://" + entered
-            profile_url = entered
-            break
-        print("A URL is required if no saved default exists. Please try again.")
+    
+    if not li_at:
+        print("Error: LI_AT is required.")
+        sys.exit(1)
 
-    if not li_at or not profile_url:
-        print("Error: LI_AT and PROFILE_URL are required.")
+    # Ask for names or URL
+    choice = input("Search by names or provide URL? (type 'names' or 'url'): ").strip().lower()
+    
+    if choice == 'names':
+        names_input = input("Enter names separated by commas (e.g., John Smith, Jane Doe, Bob Johnson): ").strip()
+        if not names_input:
+            print("No names provided.")
+            sys.exit(1)
+        
+        names = [name.strip() for name in names_input.split(",") if name.strip()]
+        if not names:
+            print("No valid names provided.")
+            sys.exit(1)
+    elif choice == 'url':
+        saved_default = env_values.get("PROFILE_URL", "").strip()
+        while True:
+            entered = input("Enter a LinkedIn URL to open (press Enter to use saved default if available): ").strip()
+            if not entered and saved_default:
+                profile_url = saved_default
+                break
+            if entered:
+                if not entered.startswith("http://") and not entered.startswith("https://"):
+                    entered = "https://" + entered
+                profile_url = entered
+                break
+            print("A URL is required if no saved default exists. Please try again.")
+        if not profile_url:
+            print("Error: PROFILE_URL is required.")
+            sys.exit(1)
+        names = None
+    else:
+        print("Invalid choice. Please type 'names' or 'url'.")
         sys.exit(1)
 
     driver = build_driver()
@@ -438,17 +503,46 @@ def main() -> None:
                 print("Login still failed with the new cookie. Please verify the value and try again.")
                 sys.exit(1)
 
-        print("Login successful. Navigating to your profile page...")
-        navigate_to_profile(driver, profile_url)
+        print("Login successful.")
 
-        # Scrape
-        print("Scraping profile...")
-        data = scrape_profile(driver, profile_url)
-        # Save JSON next to the script
-        out_path = Path(__file__).resolve().parent / "profile.json"
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"Saved: {out_path}")
+        if names:
+            # Multi-name search mode
+            all_profiles = []
+            for name in names:
+                print(f"\nSearching for: {name}")
+                profile_url = search_google_for_linkedin(driver, name)
+                if profile_url:
+                    print(f"Found LinkedIn profile: {profile_url}")
+                    navigate_to_profile(driver, profile_url)
+                    data = scrape_profile(driver, profile_url)
+                    data["search_name"] = name  # Add the search term for reference
+                    all_profiles.append(data)
+                else:
+                    print(f"No LinkedIn profile found for: {name}")
+                    all_profiles.append({
+                        "search_name": name,
+                        "error": "No LinkedIn profile found"
+                    })
+            
+            # Save all profiles to options.json
+            out_path = Path(__file__).resolve().parent / "options.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(all_profiles, f, ensure_ascii=False, indent=2)
+            print(f"\nSaved {len(all_profiles)} profiles to: {out_path}")
+        
+        else:
+            # Single URL mode
+            print("Navigating to profile page...")
+            navigate_to_profile(driver, profile_url)
+            
+            # Scrape
+            print("Scraping profile...")
+            data = scrape_profile(driver, profile_url)
+            # Save JSON next to the script
+            out_path = Path(__file__).resolve().parent / "profile.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"Saved: {out_path}")
     finally:
         try:
             driver.quit()
